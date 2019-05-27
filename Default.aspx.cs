@@ -5,6 +5,7 @@ using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using System.Data;
+using System.Text;
 
 // Written by Anurag Gandhi.
 // Url: http://www.gandhisoft.com
@@ -35,10 +36,13 @@ public partial class _Default : System.Web.UI.Page
         Pivot pvt = new Pivot(dt);
 
         grdRawData.DataSource = dt;
+
+        string dtstr = DataTableToJson(dt);
+
         grdRawData.DataBind();
 
         //Example of Pivot on Both the Axis.//
-        grdBothPivot.DataSource = pvt.PivotData(new string[] { "CTC","IsActive" }, AggregateFunction.Sum, new string[] { "Designation", "Year" }, new string[] { "Company", "Department","Name" });
+        grdBothPivot.DataSource = pvt.PivotData(new string[] { "CTC","IsActive" }, AggregateFunction.Sum, new string[] { "Designation", "Year" }, new string[] { "Company", "Department","Name" },true,true,true,true);
         grdBothPivot.DataBind();
         DataTable dtIndex = new DataTable();
         DataColumn dc;//创建列 
@@ -62,6 +66,41 @@ public partial class _Default : System.Web.UI.Page
         }
     }
 
+    public string DataTableToJson(DataTable table)
+    {
+        var JsonString = new StringBuilder();
+        if (table.Rows.Count > 0)
+        {
+            JsonString.Append("[");
+            for (int i = 0; i < table.Rows.Count; i++)
+            {
+                JsonString.Append("{");
+                for (int j = 0; j < table.Columns.Count; j++)
+                {
+                    if (j < table.Columns.Count - 1)
+                    {
+                        JsonString.Append("\"" + table.Columns[j].ColumnName.ToString()
+                   + "\":" + "\"" + table.Rows[i][j].ToString() + "\",");
+                    }
+                    else if (j == table.Columns.Count - 1)
+                    {
+                        JsonString.Append("\"" + table.Columns[j].ColumnName.ToString()
+                     + "\":" + "\"" + table.Rows[i][j].ToString() + "\"");
+                    }
+                }
+                if (i == table.Rows.Count - 1)
+                {
+                    JsonString.Append("}");
+                }
+                else
+                {
+                    JsonString.Append("},");
+                }
+            }
+            JsonString.Append("]");
+        }
+        return JsonString.ToString();
+    }
 
     protected void grdPivot2_RowCreated(object sender, GridViewRowEventArgs e)
     {

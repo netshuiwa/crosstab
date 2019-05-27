@@ -61,21 +61,6 @@
                 </asp:GridView>
             </ContentTemplate>
         </cc1:TabPanel>
-         <cc1:TabPanel ID="TabPanel4" runat="server" HeaderText="Sub Total">
-            <ContentTemplate>
-                <h2>Total Salary: Designation vs Comapany and Year (With Sub-Total)</h2>
-                <asp:GridView ID="grdSubTotal" runat="server" BackColor="White" 
-                    BorderColor="#cEcFcE" BorderStyle="Solid" BorderWidth="1px" CellPadding="4" 
-                    ForeColor="Black" onrowcreated="grdPivot2_RowCreated">
-                    <RowStyle BackColor="#F7F7DE" />
-                    <FooterStyle BackColor="#CCCC99" />
-                    <PagerStyle BackColor="#F7F7DE" ForeColor="Black" HorizontalAlign="Right" />
-                    <SelectedRowStyle BackColor="#CE5D5A" Font-Bold="True" ForeColor="White" />
-                    <HeaderStyle BackColor="#6B696B" Font-Bold="True" ForeColor="White" />
-                    <AlternatingRowStyle BackColor="White" />
-                </asp:GridView>
-            </ContentTemplate>
-        </cc1:TabPanel>
     </cc1:TabContainer>
     </form>
 </body>

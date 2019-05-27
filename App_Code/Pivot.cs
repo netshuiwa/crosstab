@@ -4,11 +4,6 @@ using System.Linq;
 using System.Web;
 using System.Data;
 
-
-// Written by Anurag Gandhi.
-// Url: http://www.gandhisoft.com
-// Contact me at: soft.gandhi@gmail.com
-
 /// <summary>
 /// Pivots the data
 /// </summary>
@@ -23,45 +18,8 @@ public class Pivot
         _Source = SourceTable.Rows.Cast<DataRow>();
     }
 
-    public DataTable PivotData(string rowField, string dataField, AggregateFunction aggregate, bool showSubTotal, params string[] columnFields)
-    {
-        DataTable dt = new DataTable();
-        string Separator = ".";
-        List<string> rowList = _Source.Select(x => x[rowField].ToString()).Distinct().ToList();
-        // Gets the list of columns .(dot) separated.
-        List<string> colList = _Source.Select(x => columnFields.Aggregate((a, b) => x[a].ToString() + Separator + x[b].ToString())).Distinct().OrderBy(m => m).ToList();
 
-        if (showSubTotal && columnFields.Length > 1)
-        {
-            string totalField = string.Empty;
-            for (int i = 0; i < columnFields.Length - 1; i++)
-                totalField += columnFields[i] + "(Total)" + Separator;
-            List<string> totalList = _Source.Select(x => totalField + x[columnFields.Last()].ToString()).Distinct().OrderBy(m => m).ToList();
-            colList.InsertRange(0, totalList);
-        }
-
-        dt.Columns.Add(rowField);
-        colList.ForEach(x => dt.Columns.Add(x));
-
-        foreach (string rowName in rowList)
-        {
-            DataRow row = dt.NewRow();
-            row[rowField] = rowName;
-            foreach (string colName in colList)
-            {
-                string filter = rowField + " = '" + rowName + "'";
-                string[] colValues = colName.Split(Separator.ToCharArray(), StringSplitOptions.None);
-                for (int i = 0; i < columnFields.Length; i++)
-                    if (!colValues[i].Contains("(Total)"))
-                        filter += " and " + columnFields[i] + " = '" + colValues[i] + "'";
-                row[colName] = GetData(filter, dataField, colName.Contains("(Total)") ? AggregateFunction.Sum : aggregate);
-            }
-            dt.Rows.Add(row);
-        }
-        return dt;
-    }
-
-    public DataTable PivotData(string[] DataFields, AggregateFunction Aggregate, string[] RowFields, string[] ColumnFields)
+    public DataTable PivotData(string[] DataFields, AggregateFunction Aggregate, string[] RowFields, string[] ColumnFields, bool rowGroup, bool colGroup, bool rowSum, bool colSum)
     {
         DataTable dt = new DataTable();
         string tempstr = "", comparestr = "";
@@ -75,36 +33,45 @@ public class Pivot
         RowListString.ForEach(i => RowListTemp.Add(i));
 
         string tempSubAll = "总计";
-        // 最后一行添加小计
-        for (int a = 1; a < RowFields.Length; a++)
+        if (rowGroup)
         {
-            foreach (var row in RowListString)
+            // 最后一行添加小计
+            for (int a = 1; a < RowFields.Length; a++)
             {
-                string[] temp = row.Split(Separator.ToCharArray());
-                for (int b = 0; b < RowFields.Length; b++)
+                foreach (var row in RowListString)
                 {
-                    if (b == 0)
+                    string[] temp = row.Split(Separator.ToCharArray());
+                    for (int b = 0; b < RowFields.Length; b++)
                     {
-                        tempstr = temp[b].ToString();
-                        comparestr = tempstr;
-                        compareIndex = tempstr.Length;
+                        if (b == 0)
+                        {
+                            tempstr = temp[b].ToString();
+                            comparestr = tempstr;
+                            compareIndex = tempstr.Length;
+                        }
+                        else if (b < a)
+                        {
+                            tempstr = tempstr + Separator + temp[b].ToString();
+                            comparestr = tempstr;
+                            compareIndex = tempstr.Length;
+                        }
+                        else { tempstr = tempstr + Separator + "小计"; }
                     }
-                    else if (b < a)
-                    {
-                        tempstr = tempstr + Separator + temp[b].ToString();
-                        comparestr = tempstr;
-                        compareIndex = tempstr.Length;
-                    }
-                    else { tempstr = tempstr + Separator + "小计"; }
+                    if (RowListTemp.FindIndex(x => x == tempstr) > 0) continue;
+                    int findIndex = RowListTemp.FindLastIndex(x => x.Length > compareIndex && x.IndexOf("小计") < 0 && x.Substring(0, compareIndex) == comparestr);
+                    RowListTemp.Insert(findIndex + 1, tempstr);
                 }
-                if (RowListTemp.FindIndex(x => x == tempstr) > 0) continue;
-                int findIndex = RowListTemp.FindLastIndex(x => x.Length > compareIndex && x.IndexOf("小计") < 0 && x.Substring(0, compareIndex) == comparestr);
-                RowListTemp.Insert(findIndex + 1, tempstr);
             }
-            //总计
-            tempSubAll = tempSubAll + Separator + "总计";
         }
-        RowListTemp.Insert(RowListTemp.Count, tempSubAll);
+        if (rowSum)
+        {
+            //总计
+            for (int a = 1; a < RowFields.Length; a++)
+            {
+                tempSubAll = tempSubAll + Separator + "总计";
+            }
+            RowListTemp.Insert(RowListTemp.Count, tempSubAll);
+        }
 
         var ColList = _Source.Select(x => (ColumnFields.Select(n => x[n]).Aggregate((a, b) => a += Separator + b.ToString())).ToString()).Distinct().OrderBy(m => m).ToList();
 
@@ -115,36 +82,45 @@ public class Pivot
         List<string> ColListTemp = new List<string>();
         ColList.ForEach(i => ColListTemp.Add(i));
         tempSubAll = "总计";
-        // 最后一列添加小计
-        for (int a = 1; a < ColumnFields.Length; a++)
+        if (colGroup)
         {
-            foreach (var col in ColList)
+            // 最后一列添加小计
+            for (int a = 1; a < ColumnFields.Length; a++)
             {
-                string[] temp = col.Split(Separator.ToCharArray());
-                for (int b = 0; b < ColumnFields.Length; b++)
+                foreach (var col in ColList)
                 {
-                    if (b == 0)
+                    string[] temp = col.Split(Separator.ToCharArray());
+                    for (int b = 0; b < ColumnFields.Length; b++)
                     {
-                        tempstr = temp[b];
-                        comparestr = tempstr;
-                        compareIndex = tempstr.Length;
+                        if (b == 0)
+                        {
+                            tempstr = temp[b];
+                            comparestr = tempstr;
+                            compareIndex = tempstr.Length;
+                        }
+                        else if (b < a)
+                        {
+                            tempstr = tempstr + Separator + temp[b];
+                            comparestr = tempstr;
+                            compareIndex = tempstr.Length;
+                        }
+                        else { tempstr = tempstr + Separator + "小计"; }
                     }
-                    else if (b < a)
-                    {
-                        tempstr = tempstr + Separator + temp[b];
-                        comparestr = tempstr;
-                        compareIndex = tempstr.Length;
-                    }
-                    else { tempstr = tempstr + Separator + "小计"; }
+                    if (ColListTemp.FindIndex(x => x == tempstr) > 0) continue;
+                    int findIndex = ColListTemp.FindLastIndex(x => x.Length > compareIndex && x.IndexOf("小计") < 0 && x.Substring(0, compareIndex) == comparestr);
+                    ColListTemp.Insert(findIndex + 1, tempstr);
                 }
-                if (ColListTemp.FindIndex(x => x == tempstr) > 0) continue;
-                int findIndex = ColListTemp.FindLastIndex(x => x.Length > compareIndex && x.IndexOf("小计") < 0 && x.Substring(0, compareIndex) == comparestr);
-                ColListTemp.Insert(findIndex + 1, tempstr);
             }
-            //总计
-            tempSubAll = tempSubAll + Separator + "总计";
         }
-        ColListTemp.Insert(ColListTemp.Count, tempSubAll);
+        if (colSum)
+        {
+            //总计
+            for (int a = 1; a < ColumnFields.Length; a++)
+            {
+                tempSubAll = tempSubAll + Separator + "总计";
+            }
+            ColListTemp.Insert(ColListTemp.Count, tempSubAll);
+        }
 
         ColList = new List<string>();
         ColListTemp.ForEach(i => ColList.Add(i));
@@ -218,7 +194,7 @@ public class Pivot
         try
         {
             DataRow[] FilteredRows = _SourceTable.Select(Filter);
-            object[] objList = FilteredRows.Select(x => x.Field<object>(DataField)).ToArray();
+            object[] objList = FilteredRows.Select(x => x[DataField]).ToArray();
 
             switch (Aggregate)
             {
